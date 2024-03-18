@@ -12,6 +12,7 @@ var DatabaseBridge = /*#__PURE__*/function () {
     this._initializationPromise = new Promise(function (resolve) {
       _this._initializationPromiseResolve = resolve;
     });
+    this._operationLock = null;
   }
   var _proto = DatabaseBridge.prototype;
   // MARK: - Asynchronous connections
@@ -65,7 +66,7 @@ var DatabaseBridge = /*#__PURE__*/function () {
       try {
         this.assertNoConnection(tag);
         driver = new _DatabaseDriver.default();
-        return Promise.resolve(driver.initialize(databaseName, schemaVersion)).then(function ($await_5) {
+        return Promise.resolve(driver.initialize(databaseName, schemaVersion)).then(function ($await_6) {
           try {
             this._initializationPromiseResolve();
             this.connected(tag, driver);
@@ -86,7 +87,7 @@ var DatabaseBridge = /*#__PURE__*/function () {
     return new Promise(function ($return, $error) {
       var driver;
       driver = new _DatabaseDriver.default();
-      return Promise.resolve(driver.setUpWithSchema(databaseName, schema, schemaVersion)).then(function ($await_6) {
+      return Promise.resolve(driver.setUpWithSchema(databaseName, schema, schemaVersion)).then(function ($await_7) {
         try {
           this.connectDriverAsync(tag, driver);
           this._initializationPromiseResolve();
@@ -123,7 +124,7 @@ var DatabaseBridge = /*#__PURE__*/function () {
           from: fromVersion,
           to: toVersion,
           sql: migrations
-        })).then(function ($await_7) {
+        })).then(function ($await_8) {
           try {
             this.connectDriverAsync(tag, _driver);
             this._initializationPromiseResolve();
@@ -206,22 +207,36 @@ var DatabaseBridge = /*#__PURE__*/function () {
         }
       }.bind(this);
       try {
-        return Promise.resolve(this._initializationPromise).then(function ($await_8) {
+        return Promise.resolve(this._initializationPromise).then(function ($await_9) {
           try {
             connection = this.connections[tag];
             if (!connection) {
               throw new Error("No driver for with tag ".concat(tag, " available, called from ").concat(functionName));
             }
             if (connection.status === 'connected') {
-              return Promise.resolve(action(connection.driver)).then(function ($await_9) {
-                try {
-                  result = $await_9;
-                  resolve(result);
-                  return $If_4.call(this);
-                } catch ($boundEx) {
-                  return $Try_3_Catch($boundEx);
-                }
-              }.bind(this), $Try_3_Catch);
+              if (this._operationLock) {
+                return Promise.resolve(this._operationLock).then(function ($await_10) {
+                  try {
+                    return $If_5.call(this);
+                  } catch ($boundEx) {
+                    return $Try_3_Catch($boundEx);
+                  }
+                }.bind(this), $Try_3_Catch);
+              }
+              function $If_5() {
+                this._operationLock = action(connection.driver);
+                return Promise.resolve(this._operationLock).then(function ($await_11) {
+                  try {
+                    result = $await_11;
+                    resolve(result);
+                    this._operationLock = null;
+                    return $If_4.call(this);
+                  } catch ($boundEx) {
+                    return $Try_3_Catch($boundEx);
+                  }
+                }.bind(this), $Try_3_Catch);
+              }
+              return $If_5.call(this);
             } else {
               if (connection.status === 'waiting') {
                 // try again when driver is ready

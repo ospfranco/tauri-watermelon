@@ -49,6 +49,7 @@ var Database = /*#__PURE__*/function () {
   };
   _proto.inTransaction = function inTransaction(executeBlock) {
     return new Promise(function ($return, $error) {
+      var transactionResult;
       var $Try_2_Post = function () {
         try {
           return $return();
@@ -58,8 +59,7 @@ var Database = /*#__PURE__*/function () {
       };
       var $Try_2_Catch = function (error) {
         try {
-          console.log('Error in transaction', error);
-          return Promise.resolve(this.instance.execute('ROLLBACK')).then(function ($await_4) {
+          return Promise.resolve(this.instance.execute('ROLLBACK;')).then(function ($await_4) {
             try {
               throw error;
             } catch ($boundEx) {
@@ -71,11 +71,12 @@ var Database = /*#__PURE__*/function () {
         }
       }.bind(this);
       try {
-        return Promise.resolve(this.instance.execute('BEGIN TRANSACTION')).then(function ($await_5) {
+        return Promise.resolve(this.instance.execute('BEGIN TRANSACTION;')).then(function ($await_5) {
           try {
+            transactionResult = $await_5;
             return Promise.resolve(executeBlock()).then(function ($await_6) {
               try {
-                return Promise.resolve(this.instance.execute('COMMIT')).then(function ($await_7) {
+                return Promise.resolve(this.instance.execute('COMMIT;')).then(function ($await_7) {
                   try {
                     return $Try_2_Post();
                   } catch ($boundEx) {
